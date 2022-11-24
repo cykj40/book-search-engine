@@ -19,6 +19,7 @@
     "mongoose": "^5.9.10"
   },
   "devDependencies": {
+    "@types/mongoose": "^5.11.97",
     "nodemon": "^2.0.3"
   }
 }

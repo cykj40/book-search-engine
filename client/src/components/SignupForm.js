@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
-import { Form, Button, Alert } from 'react-bootstrap';
+import React, { useState } from "react";
+import { Form, Button, Alert } from "react-bootstrap";
 
-import { useMutation } from '@apollo/react-hooks';
-import { ADD_USER } from '../utils/mutations';
+import { useMutation } from "@apollo/react-hooks";
+import { ADD_USER } from "../utils/mutations";
 
 
-import Auth from '../utils/auth';
+import Auth from "../utils/auth";
 
 const SignupForm = () => {
   // set initial form state
-  const [userFormData, setUserFormData] = useState({ username: '', email: '', password: '' });
+  const [userFormData, setUserFormData] = useState({ 
+    username: "", 
+    email: "", 
+    password: "" 
+  });
   // set state for form validation
   const [validated] = useState(false);
   // set state for alert
   const [showAlert, setShowAlert] = useState(false);
 
-  const [addUser, { error }] = useMutation(ADD_USER);
+  const [addUser] = useMutation(ADD_USER);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -34,7 +38,7 @@ const SignupForm = () => {
 
     try {
       const { data } = await addUser({
-       variables: { ...userFormData };
+       variables: { ...userFormData },
       });
 
       Auth.login(data.addUser.token);
@@ -44,9 +48,9 @@ const SignupForm = () => {
     }
 
     setUserFormData({
-      username: '',
-      email: '',
-      password: '',
+      username: "",
+      email: "",
+      password: "",
     });
   };
 
@@ -55,8 +59,15 @@ const SignupForm = () => {
       {/* This is needed for the validation functionality above */}
       <Form noValidate validated={validated} onSubmit={handleFormSubmit}>
         {/* show alert if server response is bad */}
-        <Alert dismissible onClose={() => setShowAlert(false)} show={showAlert} variant='danger'>
+        <Alert 
+        dismissible 
+        onClose={() => setShowAlert(false)} 
+        show={showAlert} 
+        variant="danger"
+        >
+          
           Something went wrong with your signup!
+          
         </Alert>
 
         <Form.Group>
