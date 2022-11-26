@@ -84,6 +84,7 @@
   * Go to MongoDb Atlas create a database, copy your connection uri
   * go to Heroku create a heroku app. add your connection URI for your mongodb to the config vars.
   * run git push heroku main in your cli.
+  * run Heroku open
   * Deploy and enjoy!
   ```
 
