@@ -16,7 +16,7 @@
     "express": "^4.17.1",
     "graphql": "^15.8.0",
     "jsonwebtoken": "^9.0.0",
-    "mongoose": "^5.9.10"
+    "mongoose": "^5.13.16"
   },
   "devDependencies": {
     "@types/mongoose": "^5.11.97",
