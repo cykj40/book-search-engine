@@ -12,7 +12,6 @@ model User {
     id        String   @id @default(cuid())
     email     String   @unique
     username  String   @unique
-    password  String
     books     Book[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -20,7 +19,7 @@ model User {
 
 model Book {
     id          String   @id @default(cuid())
-    bookId      String // e.g., the Google Books ID
+    bookId      String // Google Books ID
     title       String
     authors     String[]
     description String?

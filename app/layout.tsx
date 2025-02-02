@@ -1,6 +1,7 @@
 import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
-import { TRPCProvider } from '@/app/providers'
+import { TRPCProvider } from './providers'
+import { MainNav } from './components/MainNav'
 
 export const metadata = {
     title: 'Book Search Engine',
@@ -13,14 +14,17 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en">
-            <body>
-                <ClerkProvider>
+        <ClerkProvider>
+            <html lang="en">
+                <body>
                     <TRPCProvider>
-                        {children}
+                        <MainNav />
+                        <main className="min-h-screen">
+                            {children}
+                        </main>
                     </TRPCProvider>
-                </ClerkProvider>
-            </body>
-        </html>
+                </body>
+            </html>
+        </ClerkProvider>
     )
 } 

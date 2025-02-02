@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server'
 import { Context } from './context'
 import { z } from 'zod'
-import { searchGoogleBooks } from '@/lib/google-books'
+import { searchBooks } from '@/lib/google-books'
 
 const t = initTRPC.context<Context>().create()
 
@@ -14,45 +14,16 @@ const saveBookInput = z.object({
     link: z.string().optional(),
 })
 
-// Input validation schema for search
-const searchBooksInput = z.object({
-    query: z.string().min(1, "Search query cannot be empty"),
-    maxResults: z.number().min(1).max(40).default(12),
-    startIndex: z.number().min(0).default(0),
-})
-
 export const appRouter = t.router({
-    saveBook: t.procedure
-        .input(saveBookInput)
-        .mutation(async ({ input, ctx }: { input: z.infer<typeof saveBookInput>; ctx: Context }) => {
-            // Ensure the user is authenticated via Clerk:
-            if (!ctx.session.userId) {
-                throw new Error('Not authenticated')
-            }
-
-            const book = await ctx.prisma.book.create({
-                data: {
-                    ...input,
-                    userId: ctx.session.userId,
-                },
-            })
-            return book
-        }),
-
-    // Enhanced search procedure
     searchBooks: t.procedure
-        .input(searchBooksInput)
+        .input(z.object({
+            query: z.string().min(1),
+            maxResults: z.number().min(1).max(40).default(12),
+        }))
         .query(async ({ input }) => {
             try {
-                const books = await searchGoogleBooks(input.query, {
-                    maxResults: input.maxResults,
-                    startIndex: input.startIndex,
-                })
-                return {
-                    books,
-                    nextPage: books.length === input.maxResults,
-                    currentPage: Math.floor(input.startIndex / input.maxResults) + 1
-                }
+                const books = await searchBooks(input.query, input.maxResults)
+                return { books }
             } catch (error) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
@@ -62,43 +33,59 @@ export const appRouter = t.router({
             }
         }),
 
-    // Get user's saved books with pagination
-    getSavedBooks: t.procedure
-        .input(z.object({
-            limit: z.number().min(1).max(100).default(10),
-            cursor: z.string().nullish(),
-        }))
-        .query(async ({ ctx, input }) => {
+    saveBook: t.procedure
+        .input(saveBookInput)
+        .mutation(async ({ input, ctx }) => {
             if (!ctx.session.userId) {
                 throw new TRPCError({
                     code: 'UNAUTHORIZED',
-                    message: 'You must be logged in to view saved books'
+                    message: 'Must be logged in to save books'
                 })
             }
 
-            const { limit, cursor } = input
+            return ctx.prisma.book.create({
+                data: {
+                    ...input,
+                    userId: ctx.session.userId,
+                }
+            })
+        }),
 
-            const books = await ctx.prisma.book.findMany({
-                take: limit + 1,
+    getSavedBooks: t.procedure
+        .query(async ({ ctx }) => {
+            if (!ctx.session.userId) {
+                throw new TRPCError({
+                    code: 'UNAUTHORIZED',
+                    message: 'Must be logged in to view saved books'
+                })
+            }
+
+            return ctx.prisma.book.findMany({
                 where: {
                     userId: ctx.session.userId,
                 },
-                cursor: cursor ? { id: cursor } : undefined,
                 orderBy: {
                     createdAt: 'desc',
-                },
+                }
             })
+        }),
 
-            let nextCursor: typeof cursor = undefined
-            if (books.length > limit) {
-                const nextItem = books.pop()
-                nextCursor = nextItem!.id
+    deleteBook: t.procedure
+        .input(z.object({ bookId: z.string() }))
+        .mutation(async ({ input, ctx }) => {
+            if (!ctx.session.userId) {
+                throw new TRPCError({
+                    code: 'UNAUTHORIZED',
+                    message: 'Must be logged in to delete books'
+                })
             }
 
-            return {
-                books,
-                nextCursor,
-            }
+            return ctx.prisma.book.deleteMany({
+                where: {
+                    bookId: input.bookId,
+                    userId: ctx.session.userId,
+                }
+            })
         }),
 
     // You can add more procedures here (e.g., removeBook, searchBooks)

@@ -2,94 +2,58 @@
 
 import { useState } from 'react'
 import { trpc } from '@/app/utils/trpc'
-import { useInView } from 'react-intersection-observer'
-import { useEffect } from 'react'
 import Image from 'next/image'
-import type { RouterOutputs } from '@/app/utils/trpc'
-
-interface SearchResult {
-    books: RouterOutputs['searchBooks']['books']
-    nextPage: boolean
-    currentPage: number
-}
+import { Book } from '@/lib/google-books'
 
 export function SearchBooks() {
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [page, setPage] = useState(0)
-    const { ref, inView } = useInView()
 
     const {
-        data,
-        isLoading,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage
+        data: searchResults,
+        isLoading
     } = trpc.searchBooks.useQuery(
-        {
-            query: debouncedQuery,
-            maxResults: 12,
-            startIndex: page * 12
-        },
-        {
-            enabled: debouncedQuery.length > 0
-        }
-    ) as unknown as {
-        data?: { pages: SearchResult[] }
-        isLoading: boolean
-        fetchNextPage: () => Promise<unknown>
-        hasNextPage: boolean
-        isFetchingNextPage: boolean
-    }
+        { query: debouncedQuery, maxResults: 12 },
+        { enabled: debouncedQuery.length > 0 }
+    )
 
-    useEffect(() => {
-        if (inView && hasNextPage && !isFetchingNextPage) {
-            fetchNextPage()
-            setPage((p: number) => p + 1)
-        }
-    }, [inView, fetchNextPage, hasNextPage, isFetchingNextPage])
-
-    // Handle search with debounce
     const handleSearch = (value: string) => {
         setQuery(value)
-        setPage(0)
         const timeoutId = setTimeout(() => {
             setDebouncedQuery(value)
         }, 500)
         return () => clearTimeout(timeoutId)
     }
 
-    // Flatten all pages of results
-    const books = data?.pages.flatMap((page) => page.books) || []
-
     return (
-        <div className="max-w-4xl mx-auto p-4">
+        <div className="max-w-6xl mx-auto p-4">
             <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-4">Search Books</h1>
                 <input
                     type="text"
                     placeholder="Search for books..."
                     value={query}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full p-2 border rounded"
+                    className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
             </div>
 
-            {isLoading && <div>Loading...</div>}
+            {isLoading && (
+                <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {books.map((book) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {searchResults?.books.map((book: Book) => (
                     <BookCard key={book.bookId} book={book} />
                 ))}
             </div>
-
-            {isFetchingNextPage && <div>Loading more...</div>}
-            <div ref={ref} className="h-10" /> {/* Infinite scroll trigger */}
         </div>
     )
 }
 
-// Separate BookCard component for better organization
-function BookCard({ book }: { book: RouterOutputs['searchBooks']['books'][0] }) {
+function BookCard({ book }: { book: Book }) {
     const saveBookMutation = trpc.saveBook.useMutation()
 
     const handleSaveBook = async () => {
@@ -110,39 +74,45 @@ function BookCard({ book }: { book: RouterOutputs['searchBooks']['books'][0] }) 
     }
 
     return (
-        <div className="border rounded p-4 hover:shadow-lg transition-shadow">
-            {book.image && (
-                <div className="relative w-full h-48 mb-4">
+        <div className="border rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 flex flex-col">
+            <div className="relative w-full aspect-[3/4] mb-4">
+                {book.image ? (
                     <Image
                         src={book.image}
                         alt={book.title}
                         fill
-                        className="object-cover rounded"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-contain rounded-md"
+                        priority={false}
                     />
-                </div>
-            )}
-            <h3 className="font-bold truncate">{book.title}</h3>
-            <p className="text-sm text-gray-600 truncate">
-                {book.authors?.join(', ')}
+                ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
+                        No Image
+                    </div>
+                )}
+            </div>
+            <h3 className="font-bold text-lg mb-2 line-clamp-2">{book.title}</h3>
+            <p className="text-sm text-gray-600 mb-2">
+                By {book.authors?.join(', ') || 'Unknown Author'}
             </p>
-            <p className="text-sm mt-2 line-clamp-3">
-                {book.description}
+            <p className="text-sm text-gray-700 mb-4 line-clamp-3">
+                {book.description || 'No description available'}
             </p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-auto flex gap-2">
                 <button
                     onClick={handleSaveBook}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors flex-1"
                 >
-                    Save
+                    Save Book
                 </button>
                 {book.link && (
                     <a
                         href={book.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded transition-colors"
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
                     >
-                        More Info
+                        Buy
                     </a>
                 )}
             </div>
