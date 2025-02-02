@@ -1,5 +1,5 @@
 // Modern Next.js with Server Components
-import { SearchBooks } from '@/components/SearchBooks'
+import { SearchBooks } from '@/app/components/SearchBooks'
 
 export default function Home() {
     return (
