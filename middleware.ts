@@ -4,7 +4,7 @@ export default clerkMiddleware()
 
 export const config = {
     matcher: [
-        // Match all paths except static files
-        "/(.*?trpc.*?|(?!static|.*\\..*|_next|favicon.ico).*)",
+        // Match all paths except static files and user profile pages
+        "/(.*?trpc.*?|(?!static|.*\\..*|_next|favicon.ico|users/.*).*)",
     ]
 } 

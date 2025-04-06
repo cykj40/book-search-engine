@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { trpc } from '@/app/utils/trpc'
 import Image from 'next/image'
 import { Book } from '@/lib/google-books'
@@ -9,21 +9,37 @@ export function SearchBooks() {
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
 
+    // Use useCallback to prevent recreation of this function on each render
+    const handleSearch = useCallback((value: string) => {
+        setQuery(value)
+    }, [])
+
+    // Separate the debounce logic into useEffect to prevent infinite loops
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedQuery(query)
+        }, 500)
+
+        return () => clearTimeout(timeoutId)
+    }, [query])
+
     const {
         data: searchResults,
         isLoading
     } = trpc.searchBooks.useQuery(
         { query: debouncedQuery, maxResults: 12 },
-        { enabled: debouncedQuery.length > 0 }
+        {
+            enabled: debouncedQuery.length > 0,
+            // Add caching and stale time to prevent unnecessary refetches
+            staleTime: 60 * 1000, // 1 minute
+            cacheTime: 5 * 60 * 1000, // 5 minutes
+        }
     )
 
-    const handleSearch = (value: string) => {
-        setQuery(value)
-        const timeoutId = setTimeout(() => {
-            setDebouncedQuery(value)
-        }, 500)
-        return () => clearTimeout(timeoutId)
-    }
+    // Create a map to deduplicate books by ID
+    const uniqueBooks = searchResults?.books ?
+        Array.from(new Map(searchResults.books.map(book => [book.bookId, book])).values())
+        : []
 
     return (
         <div className="max-w-6xl mx-auto p-4">
@@ -38,15 +54,15 @@ export function SearchBooks() {
                 />
             </div>
 
-            {isLoading && (
+            {isLoading && debouncedQuery.length > 0 && (
                 <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                 </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults?.books.map((book: Book) => (
-                    <BookCard key={book.bookId} book={book} />
+                {uniqueBooks.map((book: Book, index: number) => (
+                    <BookCard key={`${book.bookId}-${index}`} book={book} />
                 ))}
             </div>
         </div>
@@ -118,4 +134,6 @@ function BookCard({ book }: { book: Book }) {
             </div>
         </div>
     )
-} 
+}
+
+export default SearchBooks 

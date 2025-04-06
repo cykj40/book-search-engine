@@ -23,7 +23,11 @@ export const appRouter = t.router({
         .query(async ({ input }) => {
             try {
                 const books = await searchBooks(input.query, input.maxResults)
-                return { books }
+                return {
+                    books,
+                    nextPage: books.length === input.maxResults,
+                    currentPage: 1
+                }
             } catch (error) {
                 throw new TRPCError({
                     code: 'INTERNAL_SERVER_ERROR',
@@ -43,6 +47,22 @@ export const appRouter = t.router({
                 })
             }
 
+            // Check if the book already exists for this user
+            const existingBook = await ctx.prisma.book.findFirst({
+                where: {
+                    userId: ctx.session.userId,
+                    bookId: input.bookId
+                }
+            })
+
+            if (existingBook) {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'This book is already saved'
+                })
+            }
+
+            // Save the book to the database
             return ctx.prisma.book.create({
                 data: {
                     ...input,
@@ -65,7 +85,7 @@ export const appRouter = t.router({
                     userId: ctx.session.userId,
                 },
                 orderBy: {
-                    createdAt: 'desc',
+                    createdAt: 'desc'
                 }
             })
         }),
@@ -83,7 +103,38 @@ export const appRouter = t.router({
             return ctx.prisma.book.deleteMany({
                 where: {
                     bookId: input.bookId,
-                    userId: ctx.session.userId,
+                    userId: ctx.session.userId
+                }
+            })
+        }),
+
+    getUserBooks: t.procedure
+        .input(z.object({ userId: z.string() }))
+        .query(async ({ input, ctx }) => {
+            // Security check: only allow fetching books if:
+            // 1. The user is fetching their own books
+            // 2. The system has specifically marked books as public (which we could add later)
+            if (!ctx.session.userId) {
+                throw new TRPCError({
+                    code: 'UNAUTHORIZED',
+                    message: 'You must be logged in to view user collections'
+                })
+            }
+
+            // For now, let's implement a strict policy: users can only view their own books
+            if (ctx.session.userId !== input.userId) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'You can only view your own book collection'
+                })
+            }
+
+            return ctx.prisma.book.findMany({
+                where: {
+                    userId: input.userId,
+                },
+                orderBy: {
+                    createdAt: 'desc'
                 }
             })
         }),

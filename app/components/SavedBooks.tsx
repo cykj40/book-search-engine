@@ -4,8 +4,22 @@ import { trpc } from '@/app/utils/trpc'
 import Image from 'next/image'
 
 export function SavedBooks() {
-    const { data: books, isLoading } = trpc.getSavedBooks.useQuery()
-    const deleteBook = trpc.deleteBook.useMutation()
+    const { data: savedBooks, isLoading, refetch } = trpc.getSavedBooks.useQuery()
+
+    // Handle book deletion
+    const deleteMutation = trpc.deleteBook.useMutation({
+        onSuccess: () => {
+            refetch()
+        }
+    })
+
+    const handleDeleteBook = async (bookId: string) => {
+        try {
+            await deleteMutation.mutateAsync({ bookId })
+        } catch (error) {
+            console.error('Error deleting book:', error)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -15,41 +29,58 @@ export function SavedBooks() {
         )
     }
 
+    if (!savedBooks || savedBooks.length === 0) {
+        return (
+            <div className="text-center py-10">
+                <h2 className="text-xl font-medium text-gray-600">You haven&apos;t saved any books yet</h2>
+                <p className="mt-2 text-gray-500">Search for books and click &quot;Save&quot; to add them to your collection.</p>
+            </div>
+        )
+    }
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {books?.map((book) => (
-                <div key={book.id} className="border rounded-lg shadow-md p-4">
-                    {book.image && (
-                        <div className="relative w-full h-48 mb-4">
+            {savedBooks.map((book) => (
+                <div key={book.bookId} className="border rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 flex flex-col">
+                    <div className="relative w-full aspect-[3/4] mb-4">
+                        {book.image ? (
                             <Image
                                 src={book.image}
                                 alt={book.title}
                                 fill
-                                className="object-cover rounded-md"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                className="object-contain rounded-md"
                             />
-                        </div>
-                    )}
-                    <h3 className="font-bold mb-2">{book.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                        By {book.authors.join(', ')}
+                        ) : (
+                            <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
+                                No Image
+                            </div>
+                        )}
+                    </div>
+                    <h3 className="font-bold text-lg mb-2">{book.title}</h3>
+                    <p className="text-sm text-gray-600 mb-2">
+                        By {book.authors?.join(', ') || 'Unknown Author'}
                     </p>
-                    <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-700 mb-4 line-clamp-3">
+                        {book.description || 'No description available'}
+                    </p>
+                    <div className="mt-auto flex gap-2">
+                        <button
+                            onClick={() => handleDeleteBook(book.bookId)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition-colors flex-1"
+                        >
+                            Remove
+                        </button>
                         {book.link && (
                             <a
                                 href={book.link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md"
+                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
                             >
                                 Buy
                             </a>
                         )}
-                        <button
-                            onClick={() => deleteBook.mutate({ bookId: book.bookId })}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"
-                        >
-                            Remove
-                        </button>
                     </div>
                 </div>
             ))}
